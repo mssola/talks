@@ -1,0 +1,418 @@
+
+Introduction to Go
+20 Oct 2014
+
+Miquel Sabaté Solà
+@miquelssola
+http://github.com/mssola
+
+* Organization of this talk
+
+Part 1: Background
+Part 2: Introduction to Go
+Part 3: Concurrency
+Part 4: Objected-Oriented Go
+
+Please, interrupt me!
+
+* Background
+
+* Why a new language ?
+
+A language that fits these requirements:
+
+- Efficient
+- Safe
+- Concurrent
+- Scalable
+- With a fast development cycle
+
+* Design
+
+- Lightweight
+- Concurrent
+- Object Oriented, but not in the usual way
+- Pragmatic
+
+* Go 1
+
+In March 2012 Go 1.0 was released, and with it the specification of the
+language:
+
+.link https://golang.org/ref/spec
+
+The code written for Go 1.0 *will* build and run with any release of Go 1.x
+
+* Open Source
+
+It's *not* a "Google product", it's truly open source. Check out:
+
+.link https://code.google.com/p/go/source/checkout
+
+.link https://golang.org/project/
+
+* The Language
+
+Go is a programming language that is:
+
+- Compiled
+- Garbage-collected
+- Statically typed
+- Concurrent
+- Simple
+
+* Hello World
+
+.play src/hello.go
+
+* Introduction to Go
+
+* Packages
+
+A Go program consists of _packages_
+
+A _package_ consists of one or more _source_ _files_
+
+Each _source_ _file_ starts with the _package_ _clause_
+
+Case determines visibility: _Foo_ is exported, _foo_ is not
+
+* Declarations
+
+Pascal-style, left to right.
+
+.code src/declarations.go /START4/,/STOP4/
+
+Inside a function you can use a shortcut:
+
+.code src/declarations.go /START3/,/STOP3/
+
+* Functions
+
+They can return multiple values:
+
+.code src/declarations.go /START2/,/STOP2/
+
+You can pass functions as parameters or return functions: functions are
+_first_-_class_ _citizens_ (a.k.a. closures)
+
+.code src/declarations.go /START1/,/STOP1/
+
+* Assignments
+
+++ and -- are statements. No more:
+
+  int a = ++b;
+
+You can assign multiple values simultaniously:
+
+  a, b = b, a // Swap
+  i, err = foo()
+  i, _ = foo() // Ignore the second value
+
+* Switch
+
+- *break* is implicit, *fallthrough* explicit
+- You can have multiple case values.
+- Case values are not necessarily constants.
+
+  switch b {
+  case 1, 2, 3:
+      fallthrough
+  case 4, 5:
+      a = 1
+  case b > 5 && b < 10:
+      a = 2
+  default:
+      a = 0
+  }
+
+* For loop
+
+C-like for loop:
+
+.code src/for.go /START1/,/STOP1/
+
+A "while":
+
+.code src/for.go /START2/,/STOP2/
+
+A for-range loop:
+
+.code src/for.go /START3/,/STOP3/
+
+* Importing packages
+
+- Importing packages not being used results in a build error
+- Imports are relative to the $GOPATH/src directory
+- You can import multiple packages with one import statement
+
+  import (
+      "fmt"
+      "os"
+      "github.com/mssola/user_agent"
+  )
+
+You can fetch Go packages from remote repositories with:
+
+  $ go get github.com/mssola/user_agent
+
+* Some commands
+
+Build and install:
+
+  $ go install
+
+Test:
+
+  $ go test
+
+  or, if you're working with subpackages:
+
+  $ go test -d ./...
+
+Run a specific function from the test suite:
+
+  $ go test -test.run=Index
+
+* Concurrency
+
+* "Concurrency is not parallelism"
+
+Concurrency is the composition of independently executing computations
+
+Parallelism is the *simultaneous* execution of computations
+
+More in this great talk by Rob Pike:
+
+.link http://vimeo.com/49718712
+
+* Concurrency model
+
+- Using *goroutines*
+- Share memory by communicating: *channels*
+- Offer a special syntax for synchronization
+
+* Goroutines
+
+- Kinda like threads, but not really threads
+- They are multiplexed onto OS threads as required
+- Blocking one goroutine only affects this particular goroutine
+- You can launch goroutines with the *go* keyword
+
+  go banana()
+
+* Channels
+
+Channels are typed values that allow goroutines to synchronize and exchange
+information.
+
+You can create a channel of integers like this:
+
+  c := make(chan int)
+
+To pass a value to this newly created channel, you have to use the <- syntax:
+
+  c <- 1
+
+To get a value from a channel, you use a similar syntax:
+
+  n := <-c
+
+* Basic example
+
+.play src/basic.go
+
+* Generator pattern
+
+We can return channels
+
+The range keyword works with channels. Example:
+
+.play src/concurrency/fib.go /START1/,/STOP1/
+
+* Implementing the fib generator
+
+.code src/concurrency/fib.go /START2/,/STOP2/
+
+* Filtering the fib function
+
+Since channels are first-class citizens, we can also pass channels to
+functions.
+
+The following function receives numbers through a channel, and outputs only the
+one that are even:
+
+.code src/concurrency/filtered.go /START3/,/STOP3/
+
+* Putting it all together
+
+.play src/concurrency/filtered.go /START1/,/STOP1/
+
+* Handling multiple channels
+
+We can handle multiple channels at once with the *select* statement
+
+It works like this:
+
+  select {
+  case s := <-ch1:
+      // Do something
+  case <-ch2:
+      // Do something, while ignoring the value of ch2
+  }
+
+The select statement will block, unless there is a *default* clause.
+
+* An example of multiple channels
+
+First of all, let's create a generator function
+
+.code src/concurrency/speak.go /START1/,/STOP1/
+
+* The for-select pattern
+
+.play src/concurrency/speak.go /START2/,/STOP2/
+
+* Timing out
+
+The previous example will never stop!
+
+Let's add a timeout:
+
+.play src/concurrency/timeout.go /START1/,/STOP1/
+
+* Multiplexing
+
+Another cool pattern is multiplexing channels
+
+We can group similar channels into one channel
+
+For example:
+
+.code src/concurrency/fanin.go /START1/,/STOP1/
+
+* Applying the fanIn function
+
+We can write our previous example like this now:
+
+.play src/concurrency/fanin.go /START2/,/STOP2/
+
+* More and explained more clearly
+
+"Concurrency is not Parallelism", Rob Pike
+
+.link http://talks.golang.org/2012/waza.slide
+
+"Go Concurrency Patterns", Rob Pike
+
+.link http://talks.golang.org/2012/concurrency.slide
+
+"Advanced Go Concurrency Patterns", Sameer Ajmani
+
+.link http://talks.golang.org/2013/advconc.slide
+
+* Object-oriented Go
+
+* Really ?
+
+Is Go really Object Oriented ?
+
+No..., I mean, yes, but not in the usual way!
+
+In Go we do *composition*
+
+* Types
+
+Types & structs
+
+.code src/type.go /START1/,/STOP1/
+
+Alias
+
+.code src/type.go /START2/,/STOP2/
+
+You can add methods to user-defined types
+
+.code src/type.go /START3/,/STOP3/
+
+* Interfaces (I)
+
+Go doesn't do:
+
+- Inheritance
+- Subclass Polymorphism
+- Generics
+
+Instead, it emphasizes _interfaces_
+
+* Interfaces (II)
+
+- An _interface_ defines a set of methods
+- Types implement interfaces implicitly: checked at compile time
+
+  type Stringer interface {
+      String() string
+  }
+
+- Any type that defines the String function is said to implement Stringer
+- All types implement the empty interface interface{}
+
+* An example
+
+.code src/response.go /START1/,/STOP1/
+
+The string representation of Response is the struct marshalled with json
+encoding. Therefore:
+
+.play src/response.go /START2/,/STOP2/
+
+* A more complete example: the io.Reader interface
+
+I want to read stuff, give me some bytes!
+
+  type Reader interface {
+      Read(p []byte) (n int, err error)
+  }
+
+- Implemented by: bytes.Reader, bytes.Buffer, strings.Reader, etc.
+- Interfaces separate data from behavior
+
+* Chaining
+
+Typically interfaces are small
+
+This means that it's often easy to chain interfaces
+
+Probably the coolest example (from the io package):
+
+  func Copy(dst Writer, src Reader) (int64, error)
+
+Copy works on any given Writer or Reader!
+
+* My thought on interfaces
+
+Composition is key
+
+No explicit hierarchy
+
+Interfaces are incredibly simple and easy to use
+
+They open up a way of doing lightweight OO programming
+
+* There's so much to talk about...
+
+* Links
+
+Go Home Page:
+
+.link http://golang.org
+
+Go Tour
+
+.link http://tour.golang.org
+
+Package documentation:
+
+.link http://golang.org/pkg
+
